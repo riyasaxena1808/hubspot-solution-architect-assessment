@@ -5,22 +5,8 @@ It includes a backend server (provided in starter) and a full working frontend t
 
 Along with all required endpoints, I have also implemented the optional AI Insights feature, which generates smart summaries of HubSpot contacts and deals using OpenAI.
 
-## Overview
-
-This Express.js server handles authentication and proxies requests to the HubSpot CRM API.
-A custom UI located in /public/index.html interacts with these backend endpoints to simulate Breezy’s internal admin panel.
-
-The system demonstrates:
-
-Syncing customers → HubSpot Contacts
-
-Tracking subscription conversions → HubSpot Deals
-
-Viewing deal history per contact
-
-AI-powered insights about CRM activity (optional extra feature)
-
-## Prerequisites
+## A. Setup Instructions
+### Dependencies / Prerequisites
 
 - Node.js (v14 or higher)
 - npm or yarn
@@ -28,14 +14,13 @@ AI-powered insights about CRM activity (optional extra feature)
 - A HubSpot Private App access token
 - (Optional) OpenAI API key for AI Insights feature
 
-## Setup Instructions
+### Setup 
 
 ### 1. Install Dependencies
 
-1. Install Dependencies
+```bash
 npm install
-
-
+```
 This installs Express, Axios, CORS, nodemon (dev), and OpenAI SDK.
 
 ### 2. Get Your HubSpot Access Token
@@ -73,12 +58,15 @@ Notes:
 - Do not commit .env to GitHub
 
 ### 4. Start the Server
-
 **For development (with hot-reloading):**
 
 ```bash
 npm run dev
 ```
+
+Open the UI:
+
+http://localhost:3001/
 
 This will automatically restart the server when you make changes to `server.js`.
 
@@ -117,6 +105,32 @@ Expected response:
   "status": "Server is running",
   "timestamp": "2025-11-10T..."
 }
+
+### How to test the integration flow (end-to-end)
+
+1. Start the server:
+   ```bash
+   npm run dev
+   ```
+2. Open the UI:
+    - http://localhost:3001/
+3. Confirm contacts auto-load from HubSpot
+4. Create / sync a contact using the form
+5. Create a subscription deal linked to that contact
+6. Click “View deals” to confirm the deal association appears
+7. (Optional) Click “Generate AI summary / insights” to verify AI Insights output
+
+## B. Project Overview
+
+This proof-of-concept (POC) demonstrates how **Breezy** (a smart thermostat company) could integrate their platform with **HubSpot CRM** to:
+
+- **Sync customers into HubSpot Contacts** (simulate account creation / thermostat purchase)
+- **Track subscription conversions using HubSpot Deals** (simulate upgrade to Breezy Premium)
+- **Associate deals to contacts** to see subscription history per customer
+- **View deals linked to a specific contact** from the UI
+- **(Optional)** Generate an **AI summary** of CRM activity (contacts + deals + revenue patterns)
+
+The included UI (`/public/index.html`) acts like a lightweight internal admin panel for testing the flows end-to-end.
 
 
 ## Frontend Application (UI Overview)
@@ -223,239 +237,91 @@ The AI section displays:
 - Interesting patterns  
 - Insights about customer behavior
 
-## API Endpoints
+## C. AI Usage Documentation
 
-### Health Check
+### Which AI tools were used?
+- ChatGPT (development assistance and troubleshooting)
+- OpenAI API (used in the optional AI Insights endpoint)
 
-**GET** `/health`
+### What tasks was AI used for?
+- Designing the prompt for the AI summary (contacts + deals + revenue patterns)
+- Structuring AI output so it displays cleanly in the UI
+- Troubleshooting integration issues (scopes, payload formats, associations)
+- Drafting/structuring README documentation to match assessment requirements
 
-Check if the server is running.
+### What did you learn / what was challenging?
+- Correctly associating Deals to Contacts in HubSpot is critical for reporting and “View Deals”
+- Deal stages must match valid HubSpot pipeline stage values
+- AI output needs guardrails (format + scope) to stay concise and useful
 
-**Response:**
+### How did AI help (or not help)?
+- Helped speed up iteration on prompt design and debugging
+- Manual validation in HubSpot UI was still required to confirm correct behavior
 
-```json
-{
-  "status": "Server is running",
-  "timestamp": "2025-11-10T12:00:00.000Z"
-}
-```
+## D. HubSpot Data Architecture
 
----
+### Entity Relationship Diagram (ERD)
+![ERD](images/erd.png)
 
-### Get Contacts
+**Core objects used in this POC**
+- **Contact**: Breezy customer identity and profile
+- **Deal**: Subscription conversion / subscription event
 
-**GET** `/api/contacts`
+**Relationship**
+- **Contact (1) → Deal (Many)**  
+  One customer can have multiple deals over time (upgrades, renewals, retries).
 
-Fetch all contacts from HubSpot (limited to 50).
+### Deal Pipeline Architecture
+![Deal Pipeline Architecture](images/deal-pipeline.png)
 
-**Response:**
+**Deal stage mapping used in this POC**
+- `appointmentscheduled` → Trial started
+- `qualifiedtobuy` → Active trial user
+- `closedwon` → Converted to paid subscription
+- `closedlost` → Trial ended without conversion
 
-```json
-{
-  "results": [
-    {
-      "id": "12345",
-      "properties": {
-        "firstname": "Alex",
-        "lastname": "Rivera",
-        "email": "alex@example.com",
-        "phone": "555-0123",
-        "address": "123 Main St"
-      }
-    }
-  ]
-}
-```
+## E. [Optional] AI Feature Explanation
 
----
+### Describe your AI-powered feature
+The optional AI feature (`GET /api/ai/summary`) generates a natural-language summary of HubSpot contacts and deals, including totals, estimated revenue from deal amounts, and simple patterns (e.g., deal stage distribution).
 
-### Create Contact
+### Why did you choose this feature?
+It demonstrates how Breezy can go beyond “syncing data” and quickly generate insights for sales/marketing without manually reviewing CRM records.
 
-**POST** `/api/contacts`
+### How does it make the integration smarter?
+It converts synced CRM data into:
+- A readable summary for non-technical stakeholders
+- Highlights of conversion and revenue patterns
+- Quick “health checks” on pipeline activity
 
-Create a new contact in HubSpot.
+### When would you use AI vs traditional rules/logic?
+- Use **rules/logic** for deterministic workflows (alerts, triggers, compliance, exact calculations).
+- Use **AI** for summarization, trend/pattern highlighting, and advisory insights where output is interpretive.
 
-**Request Body:**
+## F. Design Decisions
 
-```json
-{
-  "properties": {
-    "firstname": "Alex",
-    "lastname": "Rivera",
-    "email": "alex@example.com",
-    "phone": "555-0123",
-    "address": "123 Main St"
-  }
-}
-```
+### Technical choices you made and why
+- Express proxy backend to keep HubSpot access tokens server-side
+- Static frontend in `/public` for fast POC delivery without build tooling
+- Using HubSpot Contacts and Deals as the minimum viable CRM model
+- Optional OpenAI summarization to demonstrate AI-powered insights on CRM data
 
-**Response:**
+### Assumptions about Breezy's platform
+- Breezy is the system of record for customer accounts and subscriptions
+- HubSpot is primarily used by sales and marketing teams
+- Customers may have multiple subscription-related deals over time
 
-```json
-{
-  "id": "12345",
-  "properties": {
-    "firstname": "Alex",
-    "lastname": "Rivera",
-    "email": "alex@example.com",
-    ...
-  }
-}
-```
+### What you'd improve with more time
+- Add pagination and search for contacts and deals
+- Add a custom object to represent thermostat hardware
+- Improve UI validation and error messaging
+- Add reporting fields to support ARR/MRR and churn analysis
 
----
-
-### Get All Deals
-
-**GET** `/api/deals`
-
-Fetch all deals from HubSpot (limited to 50).
-
-**Response:**
-
-```json
-{
-  "results": [
-    {
-      "id": "67890",
-      "properties": {
-        "dealname": "Breezy Premium - Annual",
-        "amount": "99",
-        "dealstage": "closedwon"
-      }
-    }
-  ]
-}
-```
-
----
-
-### Create Deal
-
-**POST** `/api/deals`
-
-Create a new deal in HubSpot and associate it with a contact.
-
-**Request Body:**
-
-```json
-{
-  "dealProperties": {
-    "dealname": "Breezy Premium - Annual Subscription",
-    "amount": "99",
-    "dealstage": "closedwon"
-  },
-  "contactId": "12345"
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": "67890",
-  "properties": {
-    "dealname": "Breezy Premium - Annual Subscription",
-    "amount": "99",
-    "dealstage": "closedwon"
-  }
-}
-```
-
----
-
-### Get Deals for Contact
-
-**GET** `/api/contacts/:contactId/deals`
-
-Get all deals associated with a specific contact.
-
-**Example:**
-
-```
-GET /api/contacts/12345/deals
-```
-
-**Response:**
-
-```json
-{
-  "results": [
-    {
-      "id": "67890",
-      "properties": {
-        "dealname": "Breezy Premium - Annual",
-        "amount": "99",
-        "dealstage": "closedwon"
-      }
-    }
-  ]
-}
-```
-
-## Testing with cURL
-
-### Create a contact:
-
-```bash
-curl -X POST http://localhost:3001/api/contacts \
-  -H "Content-Type: application/json" \
-  -d '{
-    "properties": {
-      "firstname": "Test",
-      "lastname": "Customer",
-      "email": "test@breezy.com"
-    }
-  }'
-```
-
-### Get all contacts:
-
-```bash
-curl http://localhost:3001/api/contacts
-```
-
-### Create a deal:
-
-```bash
-curl -X POST http://localhost:3001/api/deals \
-  -H "Content-Type: application/json" \
-  -d '{
-    "dealProperties": {
-      "dealname": "Breezy Premium - Monthly",
-      "amount": "9.99",
-      "dealstage": "closedwon"
-    },
-    "contactId": "12345"
-  }'
-```
-
-## Common Deal Stages
-
-For the Breezy use case, you can use these standard HubSpot deal stages:
-
-- `appointmentscheduled` - Trial started
-- `qualifiedtobuy` - Active trial user
-- `closedwon` - Converted to paid subscription
-- `closedlost` - Trial ended without conversion
-
-## Error Handling
-
-All endpoints return errors in this format:
-
-```json
-{
-  "error": "Human-readable error message",
-  "details": "Technical details from HubSpot API"
-}
-```
-
-Common errors:
-
-- **401 Unauthorized**: Check your `HUBSPOT_ACCESS_TOKEN` in `.env`
-- **403 Forbidden**: Your private app may not have the required scopes
-- **404 Not Found**: Contact or deal ID doesn't exist
-- **500 Internal Server Error**: Check console logs for details
+### What you'd ask the client before building production version
+- What is the true source of truth for subscriptions?
+- Which lifecycle events matter (trial start/end, renewals, cancellations)?
+- What reporting is required (MRR, churn, conversion)?
+- What data governance and consent requirements apply?
 
 ## Project Structure
 
@@ -473,61 +339,11 @@ hs-solution-architect-tech-assessment/
 
 ```
 
-## What This Project Demonstrates
-
-This project implements a complete frontend (in `/public/index.html`) that:
-
-1. Displays contacts from `GET /api/contacts`
-2. Creates/syncs contacts via `POST /api/contacts`
-3. Creates subscription deals via `POST /api/deals`
-4. Shows deal history per contact via `GET /api/contacts/:contactId/deals`
-5. Generates AI insights using the OpenAI API via `GET /api/ai/summary`
 
 
-## Troubleshooting
 
-### Port 3001 Already in Use
 
-If you see an error like `EADDRINUSE: address already in use ::1:3001`:
 
-**On Mac/Linux:**
 
-```bash
-# Find the process using port 3001
-lsof -ti:3001
 
-# Kill the process
-kill -9 $(lsof -ti:3001)
-```
 
-**On Windows:**
-
-```bash
-# Find the process
-netstat -ano | findstr :3001
-
-# Kill it (replace PID with the number from above)
-taskkill /PID <PID> /F
-```
-
-**Note:** The updated `server.js` now includes graceful shutdown, so pressing `Ctrl+C` should properly close the port.
-
-### Other Common Issues
-
-1. **401 Unauthorized**: Check that your `.env` file has a valid `HUBSPOT_ACCESS_TOKEN`
-2. **403 Forbidden**: Your HubSpot Private App may not have the required scopes
-3. **404 Not Found**: Contact or deal ID doesn't exist in your HubSpot portal
-4. **Module not found**: Run `npm install` to install dependencies
-5. Check the console logs for detailed error messages
-6. Test endpoints with curl to isolate frontend vs backend issues
-
-## Features
-
-- Graceful shutdown (Ctrl+C)
-- Hot reload via npm run dev
-- Static file serving from /public
-- Comprehensive error handling
-- HubSpot token validation on startup
-- Optional AI analysis module using OpenAI
-
-Good luck with your assessment!
